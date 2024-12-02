@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.ndimage import convolve1d
 
 class DynamicField:
-    def __init__(self, size=100, tau=8.0, h=-8.0, beta=8.0):
+    def __init__(self, size=100, tau=8.0, h=-11.0, beta=8.0):
         """
         Initialize Dynamic Neural Field with stronger competition parameters
         """
@@ -22,9 +22,9 @@ class DynamicField:
         # Create interaction kernel with stronger lateral inhibition
         self.w = self._create_interaction_kernel(
             exc_width=1.5,      # Narrower excitation
-            exc_strength=10.0,  # Stronger local excitation
-            inh_width=8.0,      # Wider inhibition
-            inh_strength=20.0   # Stronger inhibition
+            exc_strength=15.0,  # Stronger local excitation
+            inh_width=100.0,      # Wider inhibition
+            inh_strength=0.0   # Stronger inhibition
         )
     
     def sigmoid(self, u):
@@ -50,8 +50,7 @@ class DynamicField:
         f_u = self.sigmoid(u)
         return convolve1d(f_u, self.w, mode='wrap') * self.dx
     
-    def simulate(self, T, dt, S_task, S_spec=None, t_spec=None):
-        """Simulate field dynamics"""
+    def simulate(self, T, dt, S_task, S_spec=None, t_spec=None, noise_std=0.2):
         t = np.arange(0, T, dt)
         n_steps = len(t)
         
@@ -69,6 +68,8 @@ class DynamicField:
         for i in range(1, n_steps):
             interaction = self.compute_interaction(u_history[i-1])
             du_dt = (-u_history[i-1] + S[i-1] + self.h + interaction) / self.tau
+            # Add noise with standard deviation noise_std
+            du_dt += np.random.normal(scale=noise_std, size=self.size)
             u_history[i] = u_history[i-1] + dt * du_dt
         
         return t, u_history
@@ -110,12 +111,14 @@ class DynamicField:
 def run_simulation():
     # Create field
     field = DynamicField()
+
     
     # Create task input (three gaussians centered around x=0)
     x = field.x
     S_task = (1.5 * np.exp(-0.5 * ((x - (-2))/3.5)**2) +
               1.5 * np.exp(-0.5 * ((x - 0)/3.5)**2) +
               1.5 * np.exp(-0.5 * ((x - 2)/3.5)**2))
+
     
     # Create specific input (far from task inputs at x=6)
     S_spec = 4.0 * np.exp(-0.5 * ((x - 6)/0.8)**2)
